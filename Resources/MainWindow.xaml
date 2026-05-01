@@ -1,0 +1,480 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Windows 优化加强版"
+        Width="1100" Height="720"
+        MinWidth="900" MinHeight="600"
+        WindowStartupLocation="CenterScreen"
+        Background="#F3F3F3"
+        FontFamily="Microsoft YaHei UI, Segoe UI"
+        FontSize="13">
+
+    <Window.Resources>
+
+        <SolidColorBrush x:Key="AccentBrush" Color="#0078D4"/>
+        <SolidColorBrush x:Key="AccentDark" Color="#005A9E"/>
+        <SolidColorBrush x:Key="SidebarBrush" Color="#F9F9F9"/>
+        <SolidColorBrush x:Key="CardBrush" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#1F1F1F"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#605E5C"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#E5E5E5"/>
+
+        <Style x:Key="NavButton" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="20,12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderThickness="3,0,0,0"
+                                BorderBrush="Transparent"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#EFEFEF"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#E8F1FB"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                <Setter Property="Foreground" Value="{StaticResource AccentDark}"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="22,10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentDark}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#004578"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#F5F5F5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Language pill button -->
+        <Style x:Key="LangButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#5D4A00"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="10,2"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="10" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FFE8A8"/>
+                            </Trigger>
+                            <Trigger Property="Tag" Value="active">
+                                <Setter TargetName="Bd" Property="Background" Value="#FFD466"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource CardBrush}"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="20"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <Style x:Key="H1" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="22"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="Margin" Value="0,0,0,16"/>
+        </Style>
+
+        <Style x:Key="H2" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+
+        <Style x:Key="Caption" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ====== Demo banner + lang switcher ====== -->
+        <Border Grid.Row="0" Background="#FFF4CE" BorderBrush="#FFD466" BorderThickness="0,0,0,1" Padding="16,8">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Name="BtnLangZh" Style="{StaticResource LangButton}" Content="中" Margin="0,0,4,0"/>
+                    <TextBlock Text="|" Foreground="#996F00" VerticalAlignment="Center" Margin="2,0"/>
+                    <Button Name="BtnLangEn" Style="{StaticResource LangButton}" Content="EN" Margin="4,0,0,0"/>
+                </StackPanel>
+                <TextBlock Text="⚠" FontSize="14" Foreground="#996F00" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                <TextBlock Name="BannerText" Tag="banner.demo" Foreground="#5D4A00" VerticalAlignment="Center"
+                           Text="演示模式 — 当前界面仅作交互预览，所有「应用」「优化」「清理」按钮不会真正修改系统。"/>
+            </DockPanel>
+        </Border>
+
+        <!-- ====== Main layout ====== -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- ====== Sidebar ====== -->
+            <Border Grid.Column="0" Background="{StaticResource SidebarBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
+                <DockPanel LastChildFill="True">
+                    <StackPanel DockPanel.Dock="Top" Margin="20,24,20,20">
+                        <TextBlock Text="WinOpt+" FontSize="22" FontWeight="Bold" Foreground="{StaticResource AccentBrush}"/>
+                        <TextBlock Tag="sidebar.subtitle" Style="{StaticResource Caption}" Margin="0,2,0,0" Text="Windows 优化加强版"/>
+                    </StackPanel>
+
+                    <StackPanel DockPanel.Dock="Bottom" Margin="20,12,20,16">
+                        <TextBlock Name="TxtSidebarVersion" Tag="sidebar.version" Style="{StaticResource Caption}" Text="v2.0.0"/>
+                        <TextBlock Tag="sidebar.copyright" Style="{StaticResource Caption}" Text="© 2026 youhua project"/>
+                    </StackPanel>
+
+                    <StackPanel>
+                        <RadioButton Name="NavDashboard" Style="{StaticResource NavButton}" GroupName="Nav" IsChecked="True">
+                            <TextBlock Tag="nav.dashboard" Text="📊  仪表盘"/>
+                        </RadioButton>
+                        <RadioButton Name="NavSystem" Style="{StaticResource NavButton}" GroupName="Nav">
+                            <TextBlock Tag="nav.system" Text="⚡  系统优化"/>
+                        </RadioButton>
+                        <RadioButton Name="NavNetwork" Style="{StaticResource NavButton}" GroupName="Nav">
+                            <TextBlock Tag="nav.network" Text="🌐  网络优化"/>
+                        </RadioButton>
+                        <RadioButton Name="NavGaming" Style="{StaticResource NavButton}" GroupName="Nav">
+                            <TextBlock Tag="nav.gaming" Text="🎮  游戏优化"/>
+                        </RadioButton>
+                        <RadioButton Name="NavCleanup" Style="{StaticResource NavButton}" GroupName="Nav">
+                            <TextBlock Tag="nav.cleanup" Text="🧹  临时文件清理"/>
+                        </RadioButton>
+                        <RadioButton Name="NavSettings" Style="{StaticResource NavButton}" GroupName="Nav">
+                            <TextBlock Tag="nav.settings" Text="⚙  设置"/>
+                        </RadioButton>
+                        <RadioButton Name="NavAbout" Style="{StaticResource NavButton}" GroupName="Nav">
+                            <TextBlock Tag="nav.about" Text="ℹ  关于"/>
+                        </RadioButton>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+
+            <!-- ====== Content ====== -->
+            <Grid Grid.Column="1">
+
+                <!-- Page: Dashboard -->
+                <ScrollViewer Name="PageDashboard" Visibility="Visible" VerticalScrollBarVisibility="Auto" Padding="32,28">
+                    <StackPanel>
+                        <TextBlock Tag="page.dashboard.title" Style="{StaticResource H1}" Text="仪表盘"/>
+
+                        <Grid Margin="0,0,0,20">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0" Style="{StaticResource Card}" Margin="0,0,8,0">
+                                <StackPanel>
+                                    <TextBlock Tag="card.os" Style="{StaticResource Caption}" Text="操作系统"/>
+                                    <TextBlock Name="LblOSName" FontSize="16" FontWeight="SemiBold" Margin="0,6,0,2" Text="Windows 11"/>
+                                    <TextBlock Name="LblOSBuild" Style="{StaticResource Caption}" Text="Build —"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="1" Style="{StaticResource Card}" Margin="4,0">
+                                <StackPanel>
+                                    <TextBlock Tag="card.cpu" Style="{StaticResource Caption}" Text="处理器"/>
+                                    <TextBlock Name="LblCPU" FontSize="16" FontWeight="SemiBold" Margin="0,6,0,2" Text="—"/>
+                                    <TextBlock Name="LblCPUCores" Style="{StaticResource Caption}" Text="—"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="2" Style="{StaticResource Card}" Margin="4,0">
+                                <StackPanel>
+                                    <TextBlock Tag="card.ram" Style="{StaticResource Caption}" Text="内存"/>
+                                    <TextBlock Name="LblRAM" FontSize="16" FontWeight="SemiBold" Margin="0,6,0,2" Text="—"/>
+                                    <TextBlock Name="LblRAMUsage" Style="{StaticResource Caption}" Text="—"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="3" Style="{StaticResource Card}" Margin="8,0,0,0">
+                                <StackPanel>
+                                    <TextBlock Tag="card.disk" Style="{StaticResource Caption}" Text="系统盘"/>
+                                    <TextBlock Name="LblDisk" FontSize="16" FontWeight="SemiBold" Margin="0,6,0,2" Text="—"/>
+                                    <TextBlock Name="LblDiskFree" Style="{StaticResource Caption}" Text="—"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <Border Style="{StaticResource Card}" Margin="0,0,0,20">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                    <TextBlock Name="LblScore" FontSize="56" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" Text="—"/>
+                                    <TextBlock Tag="dashboard.score.label" Style="{StaticResource Caption}" Text="健康评分（演示数据）" HorizontalAlignment="Center"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" Margin="32,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Tag="dashboard.score.section" Style="{StaticResource H2}" Text="一键体检"/>
+                                    <TextBlock Tag="dashboard.score.desc" Style="{StaticResource Caption}" TextWrapping="Wrap"
+                                               Text="扫描可优化项，包含系统、网络、游戏、临时文件四大维度。点击「开始扫描」会读取真实模块条目，但不修改系统。"/>
+                                    <ProgressBar Name="ScanProgress" Height="6" Margin="0,12,0,0" Minimum="0" Maximum="100" Value="0"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0,0,0">
+                                    <Button Name="BtnScan" Tag="btn.scan" Style="{StaticResource SecondaryButton}" Content="开始扫描" Width="110" Margin="0,0,8,0"/>
+                                    <Button Name="BtnOneClick" Tag="btn.oneclick" Style="{StaticResource PrimaryButton}" Content="一键加速" Width="110"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Tag="dashboard.modules.title" Style="{StaticResource H2}" Text="模块加载状态"/>
+                                <ItemsControl Name="ModuleStatusList"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Page: System -->
+                <Grid Name="PageSystem" Visibility="Collapsed" Margin="32,28">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Tag="page.system.title" Style="{StaticResource H1}" Text="系统优化"/>
+                    <TextBlock Grid.Row="1" Tag="page.system.desc" Style="{StaticResource Caption}" Margin="0,0,0,16"
+                               Text="包含服务、启动项、磁盘、视觉效果、注册表等优化项。勾选要应用的项后点击「应用所选」。"/>
+                    <Border Grid.Row="2" Style="{StaticResource Card}" Padding="0">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"><ItemsControl Name="ListSystem"/></ScrollViewer>
+                    </Border>
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                        <Button Name="BtnSystemSelectAll" Tag="btn.selectall" Style="{StaticResource SecondaryButton}" Content="全选" Width="90" Margin="0,0,8,0"/>
+                        <Button Name="BtnSystemClearAll"  Tag="btn.clearall"  Style="{StaticResource SecondaryButton}" Content="清空" Width="90" Margin="0,0,8,0"/>
+                        <Button Name="BtnSystemApply"     Tag="btn.apply"     Style="{StaticResource PrimaryButton}"   Content="应用所选" Width="120"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Page: Network -->
+                <Grid Name="PageNetwork" Visibility="Collapsed" Margin="32,28">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Tag="page.network.title" Style="{StaticResource H1}" Text="网络优化"/>
+                    <TextBlock Grid.Row="1" Tag="page.network.desc" Style="{StaticResource Caption}" Margin="0,0,0,16"
+                               Text="包含 TCP 调优、DNS、MTU、QoS 等。"/>
+                    <Border Grid.Row="2" Style="{StaticResource Card}" Padding="0">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"><ItemsControl Name="ListNetwork"/></ScrollViewer>
+                    </Border>
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                        <Button Name="BtnNetworkSelectAll" Tag="btn.selectall" Style="{StaticResource SecondaryButton}" Content="全选" Width="90" Margin="0,0,8,0"/>
+                        <Button Name="BtnNetworkClearAll"  Tag="btn.clearall"  Style="{StaticResource SecondaryButton}" Content="清空" Width="90" Margin="0,0,8,0"/>
+                        <Button Name="BtnNetworkApply"     Tag="btn.apply"     Style="{StaticResource PrimaryButton}"   Content="应用所选" Width="120"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Page: Gaming -->
+                <Grid Name="PageGaming" Visibility="Collapsed" Margin="32,28">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Tag="page.gaming.title" Style="{StaticResource H1}" Text="游戏优化"/>
+                    <TextBlock Grid.Row="1" Tag="page.gaming.desc" Style="{StaticResource Caption}" Margin="0,0,0,16"
+                               Text="包含高性能电源计划、GameMode、计时器精度、GPU 设置等。"/>
+                    <Border Grid.Row="2" Style="{StaticResource Card}" Padding="0">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"><ItemsControl Name="ListGaming"/></ScrollViewer>
+                    </Border>
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                        <Button Name="BtnGamingSelectAll" Tag="btn.selectall" Style="{StaticResource SecondaryButton}" Content="全选" Width="90" Margin="0,0,8,0"/>
+                        <Button Name="BtnGamingClearAll"  Tag="btn.clearall"  Style="{StaticResource SecondaryButton}" Content="清空" Width="90" Margin="0,0,8,0"/>
+                        <Button Name="BtnGamingApply"     Tag="btn.apply"     Style="{StaticResource PrimaryButton}"   Content="应用所选" Width="120"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Page: Cleanup -->
+                <Grid Name="PageCleanup" Visibility="Collapsed" Margin="32,28">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Tag="page.cleanup.title" Style="{StaticResource H1}" Text="临时文件清理"/>
+                    <TextBlock Grid.Row="1" Tag="page.cleanup.desc" Style="{StaticResource Caption}" Margin="0,0,0,16"
+                               Text="扫描各类临时文件，预估可释放空间。"/>
+                    <Border Grid.Row="2" Style="{StaticResource Card}" Margin="0,0,0,16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Name="LblCleanupSize" FontSize="36" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" Text="—"/>
+                                <TextBlock Tag="cleanup.size.label" Style="{StaticResource Caption}" Text="预估可清理（演示数据）"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="24,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Tag="cleanup.section.title" Style="{StaticResource H2}" Text="勾选下方分类后点击「立即清理」"/>
+                                <TextBlock Tag="cleanup.section.desc" Style="{StaticResource Caption}" TextWrapping="Wrap"
+                                           Text="包括 Windows 临时目录、用户临时目录、浏览器缓存、Windows Update 缓存、缩略图等。"/>
+                            </StackPanel>
+                            <Button Grid.Column="2" Name="BtnCleanScan" Tag="btn.cleanScan" Style="{StaticResource SecondaryButton}" Content="重新扫描" Width="110" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+                    <Border Grid.Row="3" Style="{StaticResource Card}" Padding="0">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"><ItemsControl Name="ListCleanup"/></ScrollViewer>
+                    </Border>
+                    <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                        <Button Name="BtnCleanupSelectAll" Tag="btn.selectall"     Style="{StaticResource SecondaryButton}" Content="全选" Width="90" Margin="0,0,8,0"/>
+                        <Button Name="BtnCleanupApply"     Tag="btn.cleanupApply"  Style="{StaticResource PrimaryButton}"   Content="立即清理" Width="120"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Page: Settings -->
+                <ScrollViewer Name="PageSettings" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" Padding="32,28">
+                    <StackPanel MaxWidth="720" HorizontalAlignment="Left">
+                        <TextBlock Tag="page.settings.title" Style="{StaticResource H1}" Text="设置"/>
+                        <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Tag="settings.run.title" Style="{StaticResource H2}" Text="运行偏好"/>
+                                <CheckBox Tag="settings.opt1" Content="操作前先创建系统还原点（推荐）" IsChecked="True" Margin="0,4"/>
+                                <CheckBox Tag="settings.opt2" Content="操作前备份注册表项" IsChecked="True" Margin="0,4"/>
+                                <CheckBox Tag="settings.opt3" Content="启动时自动检查更新" Margin="0,4"/>
+                                <CheckBox Tag="settings.opt4" Content="开机自动启动 WinOpt+" Margin="0,4"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Tag="settings.diag.title" Style="{StaticResource H2}" Text="日志与诊断"/>
+                                <DockPanel Margin="0,4">
+                                    <Button DockPanel.Dock="Right" Tag="settings.diag.logsBtn" Name="BtnOpenLogs" Style="{StaticResource SecondaryButton}" Content="打开日志目录" Width="120"/>
+                                    <TextBlock Tag="settings.diag.logsLine" Text="日志保留天数：30" VerticalAlignment="Center"/>
+                                </DockPanel>
+                                <DockPanel Margin="0,4">
+                                    <Button DockPanel.Dock="Right" Tag="settings.diag.bkBtn" Name="BtnOpenBackups" Style="{StaticResource SecondaryButton}" Content="打开备份目录" Width="120"/>
+                                    <TextBlock Tag="settings.diag.bkLine" Text="备份保留：最近 10 次" VerticalAlignment="Center"/>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Tag="settings.cfg.title" Style="{StaticResource H2}" Text="配置文件"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,4">
+                                    <Button Name="BtnExportConfig" Tag="settings.cfg.export" Style="{StaticResource SecondaryButton}" Content="导出当前配置" Width="140" Margin="0,0,8,0"/>
+                                    <Button Name="BtnImportConfig" Tag="settings.cfg.import" Style="{StaticResource SecondaryButton}" Content="导入配置文件" Width="140"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Page: About -->
+                <ScrollViewer Name="PageAbout" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" Padding="32,28">
+                    <StackPanel MaxWidth="720" HorizontalAlignment="Left">
+                        <TextBlock Tag="page.about.title" Style="{StaticResource H1}" Text="关于"/>
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Tag="about.appname" FontSize="20" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" Text="Windows 优化加强版"/>
+                                <TextBlock Tag="about.versionline" Style="{StaticResource Caption}" Text="WinOpt+ · v2.0.0 (Demo UI)" Margin="0,4,0,16"/>
+                                <TextBlock Tag="about.desc1" TextWrapping="Wrap" Margin="0,0,0,8"
+                                           Text="一款面向 Windows 10/11 的系统优化工具，覆盖系统、网络、游戏、清理四大模块，配备完整的日志与回滚机制。"/>
+                                <TextBlock Tag="about.desc2" TextWrapping="Wrap" Margin="0,0,0,8"
+                                           Text="当前为演示界面：UI 已完成，业务后端复用现有 PowerShell 模块，但「应用」类操作目前不会真正执行。"/>
+                                <Separator Margin="0,12"/>
+                                <TextBlock Tag="about.tech.title" Style="{StaticResource H2}" Text="技术栈"/>
+                                <TextBlock Tag="about.tech1" Text="• 前端：WPF (XAML) + PowerShell 5.1 host"/>
+                                <TextBlock Tag="about.tech2" Text="• 后端：现有 6 个 .ps1 模块（系统/网络/游戏/清理/配置/UI）"/>
+                                <TextBlock Tag="about.tech3" Text="• 配置：UTF-8 BOM PowerShell + JSON 持久化"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+            </Grid>
+        </Grid>
+
+        <!-- ====== Status bar ====== -->
+        <Border Grid.Row="2" Background="#FAFAFA" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="16,6">
+            <DockPanel>
+                <TextBlock Name="LblStatus" DockPanel.Dock="Left" Style="{StaticResource Caption}" Text="就绪"/>
+                <TextBlock Name="LblAdmin"  DockPanel.Dock="Right" Style="{StaticResource Caption}" Text="" HorizontalAlignment="Right"/>
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>
