@@ -159,7 +159,7 @@
         </Grid.RowDefinitions>
 
         <!-- ====== Demo banner + lang switcher ====== -->
-        <Border Grid.Row="0" Background="#FFF4CE" BorderBrush="#FFD466" BorderThickness="0,0,0,1" Padding="16,8">
+        <Border Name="DemoBanner" Grid.Row="0" Background="#FFF4CE" BorderBrush="#FFD466" BorderThickness="0,0,0,1" Padding="16,8">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Name="BtnLangZh" Style="{StaticResource LangButton}" Content="中" Margin="0,0,4,0"/>

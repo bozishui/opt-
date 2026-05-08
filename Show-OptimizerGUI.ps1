@@ -11,7 +11,12 @@
 #
 
 [CmdletBinding()]
-param()
+param(
+    # 演示模式：仅显示提示，不调用真实 Apply-* 函数
+    [switch]$DryRun,
+    # 跳过自动 UAC 提权（用于调试或已在管理员会话中）
+    [switch]$NoElevate
+)
 
 # ==========================================
 # 路径与基础环境
@@ -36,21 +41,86 @@ $Script:LogFile          = Join-Path $Script:LogsPath ("GUI_{0:yyyyMMdd_HHmmss}.
 $Script:ErrorCollection  = @()
 $Script:OperationStack   = New-Object System.Collections.Stack
 $Script:RollbackRequired = $false
-$Script:TestModeActive   = $true   # GUI 演示模式硬编码为 true
+$Script:TestModeActive   = [bool]$DryRun  # 真实模式下为 $false；模块按 TestModeActive 决定是否真正写入
 $Script:LoadedModules    = @{}
+
+# 管理员检查 + 自动提权（仅在真实模式下）
+function Test-Administrator {
+    ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+if (-not $DryRun -and -not $NoElevate -and -not (Test-Administrator)) {
+    $argList = @('-NoProfile','-ExecutionPolicy','Bypass','-File',"`"$PSCommandPath`"")
+    try {
+        Start-Process -FilePath 'powershell.exe' -Verb RunAs -ArgumentList $argList -ErrorAction Stop | Out-Null
+        return
+    }
+    catch {
+        # 用户拒绝 UAC：降级为 DryRun 演示模式继续运行
+        $Script:TestModeActive = $true
+        $DryRun = $true
+    }
+}
 
 # ==========================================
 # 最小桩函数 (替代主脚本的同名实现)
 # ==========================================
 function Write-Log {
-    param([string]$Message, [string]$Level = 'Info', [switch]$NoConsole)
+    param(
+        [Parameter(Mandatory)] [string]$Message,
+        [ValidateSet('Info','Success','Warning','Error','Debug')] [string]$Level = 'Info',
+        [switch]$NoConsole
+    )
     $line = "[{0:yyyy-MM-dd HH:mm:ss}] [{1}] {2}" -f (Get-Date), $Level, $Message
     try { Add-Content -Path $Script:LogFile -Value $line -Encoding UTF8 } catch { }
 }
-function Start-Operation       { param([string]$Name, [scriptblock]$RollbackAction = {}) ; @{ Name = $Name; StartTime = Get-Date } }
-function Complete-Operation    { param([switch]$WithErrors) }
-function Register-OperationError { param($ErrorRecord, [switch]$Fatal) ; Write-Log -Level Error -Message $ErrorRecord.Exception.Message }
-function Invoke-Rollback       { }
+
+function Start-Operation {
+    param([Parameter(Mandatory)][string]$Name, [scriptblock]$RollbackAction = {})
+    $op = @{ Name = $Name; StartTime = Get-Date; Status = 'Running'; RollbackAction = $RollbackAction; Errors = @() }
+    $Script:OperationStack.Push($op)
+    Write-Log -Level Info -Message "开始操作: $Name"
+    return $op
+}
+
+function Complete-Operation {
+    param([switch]$WithErrors)
+    if ($Script:OperationStack.Count -le 0) { return $null }
+    $op = $Script:OperationStack.Pop()
+    $dur = (Get-Date) - $op.StartTime
+    if ($WithErrors) {
+        $op.Status = 'Failed'
+        Write-Log -Level Error -Message ("操作失败: {0} (耗时 {1:N2}s)" -f $op.Name, $dur.TotalSeconds)
+    } else {
+        $op.Status = 'Completed'
+        Write-Log -Level Success -Message ("操作完成: {0} (耗时 {1:N2}s)" -f $op.Name, $dur.TotalSeconds)
+    }
+    return $op
+}
+
+function Register-OperationError {
+    param([Parameter(Mandatory)][System.Management.Automation.ErrorRecord]$ErrorRecord, [switch]$Fatal)
+    Write-Log -Level Error -Message ("错误: " + $ErrorRecord.Exception.Message)
+    if ($Script:OperationStack.Count -gt 0) {
+        $cur = $Script:OperationStack.Peek()
+        $cur.Errors += $ErrorRecord
+    }
+    $Script:ErrorCollection += $ErrorRecord
+    if ($Fatal) { $Script:RollbackRequired = $true; Invoke-Rollback }
+}
+
+function Invoke-Rollback {
+    Write-Log -Level Warning -Message "开始回滚操作..."
+    while ($Script:OperationStack.Count -gt 0) {
+        $op = $Script:OperationStack.Pop()
+        try {
+            Write-Log -Level Warning -Message "正在回滚: $($op.Name)"
+            & $op.RollbackAction
+            Write-Log -Level Success -Message "回滚完成: $($op.Name)"
+        } catch {
+            Write-Log -Level Error -Message "回滚失败: $($op.Name) - $_"
+        }
+    }
+}
 
 # ==========================================
 # 加载 .NET WPF assemblies
@@ -284,7 +354,7 @@ function Get-UiStrings {
             'module.loaded'             = 'loaded'
             'module.missing'            = 'not loaded'
             'demo.toast.title'          = 'Demo mode'
-            'demo.toast.body'           = "Demo mode: “{0}” was not executed.`n`nReal execution will be enabled when the GUI is connected to the PowerShell backend."
+            'demo.toast.body'           = "Demo mode: '{0}' was not executed.`n`nReal execution will be enabled when the GUI is connected to the PowerShell backend."
             'demo.toast.detail'         = 'Details'
             'demo.scan.found'           = 'Items found: {0}'
             'demo.detail.selected'      = '{0} item(s) selected'
@@ -526,6 +596,156 @@ function Show-DemoToast {
 }
 
 # ==========================================
+# 真实模式：调用模块 Apply-* 的执行器
+# ==========================================
+function Get-CheckedTags {
+    param([System.Windows.Controls.ItemsControl]$Container)
+    $out = @()
+    foreach ($child in $Container.Items) {
+        if ($child -is [System.Windows.Controls.CheckBox] -and $child.IsChecked -and $child.Tag) {
+            $out += $child.Tag
+        }
+    }
+    return $out
+}
+
+function Confirm-DangerousApply {
+    param([string]$Title, [string]$Detail)
+    $msg = if ($Script:UiLang -eq 'en') {
+        "About to apply changes to your system:`n`n$Detail`n`nA system restore point is recommended before continuing.`n`nProceed?"
+    } else {
+        "即将对系统应用更改:`n`n$Detail`n`n建议在继续前先创建系统还原点。`n`n是否继续？"
+    }
+    $btn = [System.Windows.MessageBox]::Show($msg, $Title, 'YesNo', 'Warning')
+    return ($btn -eq [System.Windows.MessageBoxResult]::Yes)
+}
+
+function Show-ApplyResult {
+    param([string]$Title, [int]$Total, [int]$Succeeded, [int]$Failed, [string]$Extra = '')
+    $body = if ($Script:UiLang -eq 'en') {
+        "Total: $Total`nSucceeded: $Succeeded`nFailed: $Failed"
+    } else {
+        "总计: $Total`n成功: $Succeeded`n失败: $Failed"
+    }
+    if ($Extra) { $body += "`n`n$Extra" }
+    [System.Windows.MessageBox]::Show($body, $Title, 'OK', 'Information') | Out-Null
+}
+
+function Invoke-CategoryApply {
+    param(
+        [Parameter(Mandatory)] [string]$Category,           # 'System' | 'Network' | 'Gaming'
+        [Parameter(Mandatory)] [string]$ApplyCmd,           # Apply-SystemOptimization 等
+        [Parameter(Mandatory)] [string]$DemoActionKey,      # demo.action.systemapply 等
+        [Parameter(Mandatory)] [System.Windows.Controls.ItemsControl]$Container,
+        [Parameter(Mandatory)] [object[]]$SourceOpts,
+        [Parameter(Mandatory)] [string]$Source              # 'module' | 'fallback'
+    )
+    $tags = @(Get-CheckedTags -Container $Container)
+    if ($tags.Count -eq 0) {
+        $body = if ($Script:UiLang -eq 'en') { 'No items selected.' } else { '请先勾选要应用的项。' }
+        [System.Windows.MessageBox]::Show($body, (Get-UiStr 'demo.toast.title'), 'OK', 'Information') | Out-Null
+        return
+    }
+    if ($Script:TestModeActive) {
+        Show-DemoToast -Action (Get-UiStr $DemoActionKey) -Detail (Get-UiStr 'demo.detail.selected' -FormatArgs @($tags.Count))
+        return
+    }
+    if ($Source -ne 'module') {
+        $msg = if ($Script:UiLang -eq 'en') { "$Category module not loaded — cannot apply." } else { "$Category 模块未加载，无法应用。" }
+        [System.Windows.MessageBox]::Show($msg, 'WinOpt+', 'OK', 'Error') | Out-Null
+        return
+    }
+    if (-not (Get-Command -Name $ApplyCmd -ErrorAction SilentlyContinue)) {
+        [System.Windows.MessageBox]::Show("$ApplyCmd not found.", 'WinOpt+', 'OK', 'Error') | Out-Null
+        return
+    }
+    $names = ($tags | ForEach-Object { $_.Item.Name }) -join "`n• "
+    if (-not (Confirm-DangerousApply -Title (Get-UiStr $DemoActionKey) -Detail ("• " + $names))) { return }
+
+    (Find 'LblStatus').Text = if ($Script:UiLang -eq 'en') { 'Applying...' } else { '正在应用...' }
+    $window.Cursor = [System.Windows.Input.Cursors]::Wait
+    $ok = 0; $bad = 0
+    try {
+        foreach ($t in $tags) {
+            try {
+                $r = & $ApplyCmd -Index ([int]$t.Index)
+                if ($r) { $ok++ } else { $bad++ }
+            } catch {
+                $bad++
+                Write-Log -Level Error -Message ("Apply 失败 ({0} #{1}): {2}" -f $Category, $t.Index, $_.Exception.Message)
+            }
+        }
+    }
+    finally {
+        $window.Cursor = $null
+        Set-StatusForNavKey -Key $Script:CurrentNavKey
+    }
+    Show-ApplyResult -Title (Get-UiStr $DemoActionKey) -Total $tags.Count -Succeeded $ok -Failed $bad
+}
+
+function Invoke-CleanupApply {
+    $tags = @(Get-CheckedTags -Container (Find 'ListCleanup'))
+    if ($tags.Count -eq 0) {
+        $body = if ($Script:UiLang -eq 'en') { 'No categories selected.' } else { '请先勾选要清理的分类。' }
+        [System.Windows.MessageBox]::Show($body, (Get-UiStr 'demo.toast.title'), 'OK', 'Information') | Out-Null
+        return
+    }
+    if ($Script:TestModeActive) {
+        Show-DemoToast -Action (Get-UiStr 'demo.action.cleanup') `
+            -Detail (Get-UiStr 'demo.detail.cleanup' -FormatArgs @($tags.Count, (Find 'LblCleanupSize').Text))
+        return
+    }
+    if ($Script:DemoCleanResult.Source -ne 'module' -or -not (Get-Command -Name 'Start-TempFileCleaning' -ErrorAction SilentlyContinue)) {
+        $msg = if ($Script:UiLang -eq 'en') { 'Temp.Cleaner module not loaded — cannot clean.' } else { 'Temp.Cleaner 模块未加载，无法清理。' }
+        [System.Windows.MessageBox]::Show($msg, 'WinOpt+', 'OK', 'Error') | Out-Null
+        return
+    }
+    # 模块加载下，$Script:cleanOpts 即为 Get-CleanOptions 返回 (与模块内 $Script:CleanOptions 同一引用)；
+    # tags.Item 已经是 hashtable，直接传入 -Options
+    $selected = @($tags | ForEach-Object { $_.Item })
+    $names = ($selected | ForEach-Object { $_.Name }) -join "`n• "
+    if (-not (Confirm-DangerousApply -Title (Get-UiStr 'demo.action.cleanup') -Detail ("• " + $names))) { return }
+
+    (Find 'LblStatus').Text = if ($Script:UiLang -eq 'en') { 'Cleaning...' } else { '正在清理...' }
+    $window.Cursor = [System.Windows.Input.Cursors]::Wait
+    $result = $null
+    try {
+        $result = Start-TempFileCleaning -Options $selected -Force
+    } catch {
+        Write-Log -Level Error -Message ("Cleanup 失败: " + $_.Exception.Message)
+    }
+    finally {
+        $window.Cursor = $null
+        Set-StatusForNavKey -Key $Script:CurrentNavKey
+    }
+    if ($null -eq $result) {
+        Show-ApplyResult -Title (Get-UiStr 'demo.action.cleanup') -Total $selected.Count -Succeeded 0 -Failed $selected.Count
+        return
+    }
+    $extra = ''
+    if ($result.PSObject.Properties.Name -contains 'FreedSpace' -and $result.FreedSpace) { $extra = "$($result.FreedSpace)" }
+    elseif ($result.PSObject.Properties.Name -contains 'Formatted') { $extra = $result.Formatted }
+    Show-ApplyResult -Title (Get-UiStr 'demo.action.cleanup') `
+        -Total ([int]$result.TotalCount) -Succeeded ([int]$result.SuccessCount) -Failed ([int]($result.TotalCount - $result.SuccessCount)) -Extra $extra
+    # 清理后重新估算大小
+    Update-CleanupEstimate
+}
+
+function Update-CleanupEstimate {
+    if ($Script:TestModeActive -or -not (Get-Command -Name 'Get-EstimatedTempSize' -ErrorAction SilentlyContinue)) {
+        $bytes = Get-Random -Minimum 500MB -Maximum 8GB
+        (Find 'LblCleanupSize').Text = "{0:N1} GB" -f ($bytes / 1GB)
+        return
+    }
+    try {
+        $info = Get-EstimatedTempSize
+        if ($info -and $info.Formatted) { (Find 'LblCleanupSize').Text = $info.Formatted }
+    } catch {
+        Write-Log -Level Warning -Message ("Get-EstimatedTempSize 失败: " + $_.Exception.Message)
+    }
+}
+
+# ==========================================
 # 渲染列表项 (CheckBox + 名称 + 描述)
 # ==========================================
 function Set-CheckListItems {
@@ -535,10 +755,14 @@ function Set-CheckListItems {
         [Parameter(Mandatory)] [object[]]$Items
     )
     $Container.Items.Clear()
+    $idx = 0
     foreach ($it in $Items) {
         $cb = New-Object System.Windows.Controls.CheckBox
         $cb.Margin = '16,10,16,10'
         $cb.IsChecked = $false
+        # 把源条目和索引挂到 Tag，便于 Apply 时定位
+        $cb.Tag = [pscustomobject]@{ Index = $idx; Item = $it }
+        $idx++
         # 部分项 (Temp.Cleaner) 可能带 Enabled 默认值
         if ($it.PSObject.Properties.Name -contains 'Enabled') { $cb.IsChecked = [bool]$it.Enabled }
 
@@ -663,9 +887,14 @@ catch {
 # 演示评分 (固定 0-100 之间随机)
 (Find 'LblScore').Text = (Get-Random -Minimum 60 -Maximum 95).ToString()
 
-# 演示数据：清理预估
-$bytesEstimate = (Get-Random -Minimum 500MB -Maximum 8GB)
-(Find 'LblCleanupSize').Text = "{0:N1} GB" -f ($bytesEstimate / 1GB)
+# 清理预估：模块可用时读真实数据，否则随机演示数据
+Update-CleanupEstimate
+
+# 真实模式下隐藏演示模式横幅
+if (-not $Script:TestModeActive) {
+    $banner = Find 'DemoBanner'
+    if ($banner) { $banner.Visibility = 'Collapsed' }
+}
 
 # ==========================================
 # 按钮事件
@@ -674,6 +903,9 @@ $bytesEstimate = (Get-Random -Minimum 500MB -Maximum 8GB)
     $bar = Find 'ScanProgress'
     $bar.Value = 0
     (Find 'LblStatus').Text = Get-UiStr 'status.scanning'
+    # 重新读取真实模块的优化项（演示模式下亦走 fallback）
+    Refresh-OptimizationLists
+    Update-CleanupEstimate
     $timer = New-Object System.Windows.Threading.DispatcherTimer
     $timer.Interval = [TimeSpan]::FromMilliseconds(40)
     $timer.Add_Tick({
@@ -681,44 +913,57 @@ $bytesEstimate = (Get-Random -Minimum 500MB -Maximum 8GB)
         if ($bar.Value -ge 100) {
             $timer.Stop()
             (Find 'LblStatus').Text = Get-UiStr 'status.scan.done'
-            $cnt = $Script:systemOpts.Count + $Script:networkOpts.Count + $Script:gamingOpts.Count
-            Show-DemoToast -Action (Get-UiStr 'demo.action.scan') -Detail (Get-UiStr 'demo.scan.found' -FormatArgs @($cnt))
+            $cnt = $Script:systemOpts.Count + $Script:networkOpts.Count + $Script:gamingOpts.Count + $Script:cleanOpts.Count
+            if ($Script:TestModeActive) {
+                Show-DemoToast -Action (Get-UiStr 'demo.action.scan') -Detail (Get-UiStr 'demo.scan.found' -FormatArgs @($cnt))
+            }
         }
     })
     $timer.Start()
 })
 
-(Find 'BtnOneClick').Add_Click({ Show-DemoToast -Action (Get-UiStr 'demo.action.oneclick') })
+(Find 'BtnOneClick').Add_Click({
+    if ($Script:TestModeActive) { Show-DemoToast -Action (Get-UiStr 'demo.action.oneclick'); return }
+    # 一键加速：勾选每个分类全部条目后依次应用
+    Set-AllChecked -Container (Find 'ListSystem')  -Value $true
+    Set-AllChecked -Container (Find 'ListNetwork') -Value $true
+    Set-AllChecked -Container (Find 'ListGaming')  -Value $true
+    $detail = if ($Script:UiLang -eq 'en') {
+        'This will apply ALL system / network / gaming tweaks. Continue?'
+    } else {
+        '这将应用全部系统 / 网络 / 游戏优化项。是否继续？'
+    }
+    if (-not (Confirm-DangerousApply -Title (Get-UiStr 'demo.action.oneclick') -Detail $detail)) { return }
+    Invoke-CategoryApply -Category 'System'  -ApplyCmd 'Apply-SystemOptimization'  -DemoActionKey 'demo.action.systemapply'  -Container (Find 'ListSystem')  -SourceOpts $Script:systemOpts  -Source $Script:DemoSystemResult.Source
+    Invoke-CategoryApply -Category 'Network' -ApplyCmd 'Apply-NetworkOptimization' -DemoActionKey 'demo.action.networkapply' -Container (Find 'ListNetwork') -SourceOpts $Script:networkOpts -Source $Script:DemoNetworkResult.Source
+    Invoke-CategoryApply -Category 'Gaming'  -ApplyCmd 'Apply-GamingOptimization'  -DemoActionKey 'demo.action.gamingapply'  -Container (Find 'ListGaming')  -SourceOpts $Script:gamingOpts  -Source $Script:DemoGamingResult.Source
+})
 
 (Find 'BtnSystemSelectAll').Add_Click({  Set-AllChecked -Container (Find 'ListSystem')  -Value $true })
 (Find 'BtnSystemClearAll').Add_Click({   Set-AllChecked -Container (Find 'ListSystem')  -Value $false })
 (Find 'BtnSystemApply').Add_Click({
-    $n = Get-CheckedCount -Container (Find 'ListSystem')
-    Show-DemoToast -Action (Get-UiStr 'demo.action.systemapply') -Detail (Get-UiStr 'demo.detail.selected' -FormatArgs @($n))
+    Invoke-CategoryApply -Category 'System' -ApplyCmd 'Apply-SystemOptimization' -DemoActionKey 'demo.action.systemapply' `
+        -Container (Find 'ListSystem') -SourceOpts $Script:systemOpts -Source $Script:DemoSystemResult.Source
 })
 
 (Find 'BtnNetworkSelectAll').Add_Click({ Set-AllChecked -Container (Find 'ListNetwork') -Value $true })
 (Find 'BtnNetworkClearAll').Add_Click({  Set-AllChecked -Container (Find 'ListNetwork') -Value $false })
 (Find 'BtnNetworkApply').Add_Click({
-    $n = Get-CheckedCount -Container (Find 'ListNetwork')
-    Show-DemoToast -Action (Get-UiStr 'demo.action.networkapply') -Detail (Get-UiStr 'demo.detail.selected' -FormatArgs @($n))
+    Invoke-CategoryApply -Category 'Network' -ApplyCmd 'Apply-NetworkOptimization' -DemoActionKey 'demo.action.networkapply' `
+        -Container (Find 'ListNetwork') -SourceOpts $Script:networkOpts -Source $Script:DemoNetworkResult.Source
 })
 
 (Find 'BtnGamingSelectAll').Add_Click({  Set-AllChecked -Container (Find 'ListGaming')  -Value $true })
 (Find 'BtnGamingClearAll').Add_Click({   Set-AllChecked -Container (Find 'ListGaming')  -Value $false })
 (Find 'BtnGamingApply').Add_Click({
-    $n = Get-CheckedCount -Container (Find 'ListGaming')
-    Show-DemoToast -Action (Get-UiStr 'demo.action.gamingapply') -Detail (Get-UiStr 'demo.detail.selected' -FormatArgs @($n))
+    Invoke-CategoryApply -Category 'Gaming' -ApplyCmd 'Apply-GamingOptimization' -DemoActionKey 'demo.action.gamingapply' `
+        -Container (Find 'ListGaming') -SourceOpts $Script:gamingOpts -Source $Script:DemoGamingResult.Source
 })
 
 (Find 'BtnCleanupSelectAll').Add_Click({ Set-AllChecked -Container (Find 'ListCleanup') -Value $true })
-(Find 'BtnCleanupApply').Add_Click({
-    $n = Get-CheckedCount -Container (Find 'ListCleanup')
-    Show-DemoToast -Action (Get-UiStr 'demo.action.cleanup') -Detail (Get-UiStr 'demo.detail.cleanup' -FormatArgs @($n, (Find 'LblCleanupSize').Text))
-})
+(Find 'BtnCleanupApply').Add_Click({ Invoke-CleanupApply })
 (Find 'BtnCleanScan').Add_Click({
-    $bytesEstimate = Get-Random -Minimum 500MB -Maximum 8GB
-    (Find 'LblCleanupSize').Text = "{0:N1} GB" -f ($bytesEstimate / 1GB)
+    Update-CleanupEstimate
     (Find 'LblStatus').Text = Get-UiStr 'status.clean.rescanned'
 })
 
