@@ -109,16 +109,28 @@ The footer status bar shows current page, admin status (🛡 elevated /
 
 ## Download & install
 
-There is nothing to compile — clone or download the repo and run a `.ps1` file.
+**Option A — One-click installer (recommended):**
 
-**Option A — git clone:**
+1. Download `WinOptPlus-Setup-2.0.0.exe` from the Releases page.
+2. Double-click and accept the wizard. Pick *Install for me only* (no admin
+   required) or *All users* (admin).
+3. Launch via the **WinOpt+** Start-Menu shortcut. UAC will prompt the first
+   time you Apply real changes; pick **WinOpt+ (Demo)** to preview without UAC.
+
+The installer pre-clears PowerShell execution policy and Windows
+Mark-of-the-Web blocking, so no manual `Unblock-File` or
+`Set-ExecutionPolicy` is required.
+
+If you'd rather work from source, both options below still work.
+
+**Option B — git clone:**
 
 ```powershell
 git clone https://github.com/bozishui/opt-.git
 cd opt-
 ```
 
-**Option B — ZIP download:**
+**Option C — ZIP download:**
 
 1. Visit <https://github.com/bozishui/opt-> and click **Code → Download ZIP**.
 2. Right-click the ZIP → **Properties** → check **Unblock** → **OK** (avoids
